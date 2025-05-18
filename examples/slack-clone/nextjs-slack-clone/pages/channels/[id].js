@@ -5,6 +5,7 @@ import { useRouter } from 'next/router'
 import { useStore, addMessage } from '~/lib/Store'
 import { useContext, useEffect, useRef } from 'react'
 import UserContext from '~/lib/UserContext'
+import { supabase } from '~/lib/Store' // make sure this is at the top if not already
 
 const ChannelsPage = (props) => {
   const router = useRouter()
@@ -14,6 +15,23 @@ const ChannelsPage = (props) => {
   // Else load up the page
   const { id: channelId } = router.query
   const { messages, channels } = useStore({ channelId })
+
+
+useEffect(() => {
+  if (!channelId) return
+
+  const subscription = supabase
+    .from(`messages:channel_id=eq.${channelId}`)
+    .on('INSERT', (payload) => {
+      console.log("🔁 Realtime message received:", payload.new)
+      addMessage(payload.new.message, channelId, payload.new.user_id)
+    })
+    .subscribe()
+
+  return () => {
+    supabase.removeChannel(subscription)
+  }
+}, [channelId])
 
   useEffect(() => {
     messagesEndRef.current.scrollIntoView({
